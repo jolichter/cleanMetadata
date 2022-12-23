@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# V 2022-12-02
+# V 2022-12-03
 #
 # PDF's und JPEG-Bilder für das Internet DSGVO konform ohne Metadaten speichern.
 # JPEG-Bilder auf eine maximale Pixelgröße verkleinern und komprimieren.
@@ -13,6 +13,7 @@
 from PIL import Image
 import glob
 import os
+from itertools import chain
 from PyPDF2 import PdfFileReader, PdfFileWriter
 
 # Settings:
@@ -49,6 +50,9 @@ def delete_jpg_metadata(path):
     if width > max_size or height > max_size:
         size = (max_size, max_size)
         image.thumbnail(size, Image.Resampling.LANCZOS)
+
+    # exif=b"" -> bedeutet das keine Exif-Daten in der Bilddatei enthalten sind.
+    # Die Syntax b"" wird verwendet, um ein Byte-Objekt zu erzeugen, das eine leere Zeichenfolge darstellt.
     image.save(path, "JPEG", exif=b"", quality=compression, optimize=True)
 
 if __name__ == "__main__":
@@ -84,12 +88,13 @@ if __name__ == "__main__":
         print(path)
 
     # Alle JPEG's im Ordner und Unterverzeichnisse (rekursiv)
-    # funktioniert nicht :-\
+    # funktioniert so nicht, nur mit einer Extension
     # for path in glob.iglob(f'{directory}/**/*.{jpg,jpeg}', recursive=True):
-    # darum 2x
-    for path in glob.iglob(f'{directory}/**/*.jpg', recursive=True):
-        delete_jpg_metadata(path)
-        print(path)
-    for path in glob.iglob(f'{directory}/**/*.jpeg', recursive=True):
+
+    pattern_jpg = f'{directory}/**/*.jpg'
+    pattern_jpeg = f'{directory}/**/*.jpeg'
+    paths_jpg = glob.iglob(pattern_jpg, recursive=True)
+    paths_jpeg = glob.iglob(pattern_jpeg, recursive=True)
+    for path in chain(paths_jpg, paths_jpeg):
         delete_jpg_metadata(path)
         print(path)
