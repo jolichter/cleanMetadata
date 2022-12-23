@@ -1,9 +1,10 @@
 #!/usr/bin/env python
-# V 2022-12-01
+# V 2022-12-02
 #
-# PDF und JPEG-Bilder für das Internet DSGVO konform ohne Metadaten speichern
-# JPEG-Bilder auf eine maximale Pixelgröße verkleinern und komprimieren
-# Alle PDF's und JPEG-Bilder im gleichen Ordner und darunter (rekursiv) wie das Skript werden bearbeitet, siehe Settings
+# PDF's und JPEG-Bilder für das Internet DSGVO konform ohne Metadaten speichern.
+# JPEG-Bilder auf eine maximale Pixelgröße verkleinern und komprimieren.
+# Alle PDF's und JPEG-Bilder im gleichen Ordner und darunter (rekursiv) in welchem sich das Skript befindet,
+# werden bearbeitet, siehe Settings.
 #
 # Benötigt folgende Python-Module: Pillow, pypdf2
 #
@@ -19,16 +20,16 @@ max_size = 1280  # Maximal erlaubte Größe in Pixeln
 compression = 80  # Qualität der JPEG-Komprimierung (0-100)
 directory = os.getcwd()  # oder fest, z.B.: '/home/USER/MeineDateien'
 
-def delete_pdf_metadata(full_path):
+def delete_pdf_metadata(path):
     # Dateiname und Pfad ohne Dateiname
-    str_filename = full_path.split('/')[-1]
-    str_path = full_path.replace(str_filename, '')
+    str_filename = path.split('/')[-1]
+    str_path = path.replace(str_filename, '')
     pdf_writer = PdfFileWriter()
     # temporäre Datei erstellen, f-String = Stringformatierung
     tmp = f'{str_path}tmp.{str_filename}'
     # Öffnen der neuen Datei im Write-Modus und bestehende im Read-Modus
     with open(tmp, 'wb') as out:
-        with open(full_path, 'rb') as pdf_in:
+        with open(path, 'rb') as pdf_in:
             # Seiten die noch Meta Daten enthalten suchen und eine Kopie mit neuen Meta Daten erstellen
             pdf = PdfFileReader(pdf_in)
             for page in range(pdf.getNumPages()):
@@ -36,28 +37,19 @@ def delete_pdf_metadata(full_path):
             # Metadaten schreiben
             pdf_writer.addMetadata(metadata)
             pdf_writer.write(out)
-    os.remove(full_path)
+    os.remove(path)
     os.rename(tmp, str_path + str_filename)
 
-def delete_jpg_metadata(full_path):
-    # Bilder öffnen mit Pillow
-    for file in os.listdir(directory):
-        extension = file.lower()[-4:]
-        if extension == ".jpg" or extension == ".jpeg":
-            image = Image.open(os.path.join(directory, file))
-            width, height = image.size
+def delete_jpg_metadata(path):
+    # Entfernen der Metadaten und max. Größe mit Pillow
+    image = Image.open(path)
+    width, height = image.size
 
-            if width > max_size or height > max_size:
-                ratio = min(max_size / width, max_size / height)
-                image = image.resize((int(width * ratio), int(height * ratio)))
-
-            # Entfernen der Metadaten
-            data = list(image.getdata())
-            image_without_exif = Image.new(image.mode, image.size)
-            image_without_exif.putdata(data)
-            # Bild ohne Metadaten speichern
-            image_without_exif.save(os.path.join(directory, file), quality=compression)
-
+    # Größe des Bildes ändern, wenn es größer als max_size ist
+    if width > max_size or height > max_size:
+        size = (max_size, max_size)
+        image.thumbnail(size, Image.Resampling.LANCZOS)
+    image.save(path, "JPEG", exif=b"", quality=compression, optimize=True)
 
 if __name__ == "__main__":
 
